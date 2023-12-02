@@ -1,6 +1,6 @@
 # docs: https://docs.telethon.dev/en/stable/index.html
 
-from telethon.sync import TelegramClient
+from telethon.sync import TelegramClient, events
 from dotenv import load_dotenv
 import os
 load_dotenv()
@@ -13,38 +13,41 @@ bot_token, api_id, api_hash=os.environ.get("KevinMaloneBot_Token"), os.environ.g
 # CLIENT WILL USE YOUR OWN TELEGRAM ACCOUNT
 client = TelegramClient('kmalone', api_id=api_id, api_hash=api_hash)
 
+
+@client.on(events.NewMessage)
+async def my_event_handler(event):
+    if 'hello' in event.raw_text:
+        await event.reply('hi!')
+
 # This works for TelegramClients using real accounts (not bots)
 async def main():
     # Getting information about yourself
     me = await client.get_me()
 
-    # "me" is a user object. You can pretty-print
-    # any Telegram object with the "stringify" method:
-    print(me.stringify())
+    # "me" is a user object. Pretty print
+    # print(me.stringify())
 
-    # When you print something, you see a representation of it.
-    # You can access all attributes of Telegram objects with
-    # the dot operator. For example, to get the username:
+    # Account metadata
     username = me.username
-    print(username)
-    print(me.phone)
+    print(f"Username: {username}\n")
+    print(f"Phone Number: {me.phone}\n")
 
     # You can print all the dialogs/conversations that you are part of:
     async for dialog in client.iter_dialogs():
         print(dialog.name, 'has ID', dialog.id)
 
-    # You can send messages to yourself...
-    await client.send_message('me', 'Hello, myself!')
+    
 
-    funemployment_id = -1002060073951
-    # Get the group entity
-    group = await client.get_entity(funemployment_id)
-    idx = 0
-    async for message in client.iter_messages(group, min_id=1):
-        idx +=1
-        if idx > 100:
-            break
-        print(message.date, message.text)
+    # Printing message details for a group
+    # funemployment_id = -1002060073951
+    # # Get the group entity
+    # group = await client.get_entity(funemployment_id)
+    # idx = 0
+    # async for message in client.iter_messages(group, min_id=1):
+    #     idx +=1
+    #     if idx > 100:
+    #         break
+    #     print(message.date, message.text)
 
 
 
@@ -86,29 +89,5 @@ async def main():
 
 with client:
     client.loop.run_until_complete(main())
+    client.run_until_disconnected()
 
-async def main_bot(bot_client):
-    # Getting information about yourself
-    me = await bot_client.get_me()
-
-    # "me" is a user object. You can pretty-print
-    # any Telegram object with the "stringify" method:
-    print(f"---- BOT INFO ----\n{me.stringify()}\n")
-
-    # When you print something, you see a representation of it.
-    # You can access all attributes of Telegram objects with
-    # the dot operator. For example, to get the username:
-    username = me.username
-    print(f'---USERNAME----\n{username}\n')
-    print(f'---PHONE NUMBER----\n{me.phone}\n')
-
-    # async for dialog in bot_client.iter_dialogs():
-    #     print(dialog.name, 'has ID', dialog.id)
-
-    async for message in bot_client.iter_messages("funemployment"):
-        print(message.id, message.text)
-
-# We have to manually call "start" if we want an explicit bot token
-# bot = TelegramClient('bot', api_id, api_hash).start(bot_token=bot_token)
-# with bot:
-#     bot.loop.run_until_complete(main_bot(bot))
