@@ -2,6 +2,10 @@
 *.session
 *.session-journal
 
+# For privacy reasons
+/data/*.pkl
+# /experimentation/test-langchain.ipynb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

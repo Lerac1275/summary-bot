@@ -3,13 +3,15 @@
 from telethon.sync import TelegramClient, events
 from dotenv import load_dotenv
 import os
-import datetime, pytz
+import datetime, pytz, pickle
 load_dotenv()
 # Load Bot Token, api_id and api_hash
 bot_token, api_id, api_hash=os.environ.get("KevinMaloneBot_Token"), os.environ.get('api_id'), os.environ.get('api_hash')
 
 # Chat ID for my test group chat
 test_chat_id = -4020519896
+# Chat ID for funemployment
+funemployment_id = -1002060073951
 
 # Gets messages from a specific chatid up to a certain cutoff time.
 async def get_messages(chat_id, cutoff_time):
@@ -35,6 +37,36 @@ async def get_messages(chat_id, cutoff_time):
         msg_sender = msg_sender.username
         # Pring message details
         print(f"Message sent at: {message.date}\nMessage Sender: {msg_sender}\nMessage: {message.message}\n\n")
+    pass
+
+# Temp function to extract chat messages for tesitng in LLM summarization piece
+async def extract_messages(chat_id, cutoff_time):
+    # Just a placeholder fornow, will need to abstract this away to a function that computes the cutoff time when given a user instruction
+    cutoff_time = datetime.datetime.utcnow() - datetime.timedelta(hours=12)
+    # Create a timezone object for UTC
+    utc_timezone = pytz.timezone('UTC')
+    # Make the datetime object aware of the UTC timezone
+    cutoff_time = utc_timezone.localize(cutoff_time)
+
+    messages = []
+    async for message in client.iter_messages(chat_id):
+        # print(message.message, message.date)
+        if message.date < cutoff_time:
+            break
+        else:
+            # Get the username of the sender
+            msg_sender = await message.get_sender()
+            msg_sender = msg_sender.username
+            
+            msg= {
+                'sender': msg_sender
+                , 'datetime':message.date
+                , 'message':message.message
+            }
+            messages.append(msg)
+
+    with open('sample_messages.pkl', 'wb') as file:
+        pickle.dump(messages, file)
     pass
 
 
@@ -124,8 +156,8 @@ async def main():
     #         print('File saved to', path)  # printed after download is done
 
 with client:
-    client.loop.run_until_complete(main())
+    # client.loop.run_until_complete(main())
     # print(f"Service is live\n\n")
     # client.run_until_disconnected()
-    # client.loop.run_until_complete(get_messages(test_chat_id, None))
+    client.loop.run_until_complete(extract_messages(funemployment_id, None))
 

@@ -1,14 +1,23 @@
-# Ideas
+# Introduction
 
-1. A bot that waits until about 10pm each day then sends a summary of the messages sent that day. 
+The goal of this project is to create a telegram bot that can summarize group chat messages on command. 
 
-2. Could also have a function where the user can interact with the bot (e.g. send a command) to get a quick summary of messages sent in the last X hour window(?)
+A user would be able to specify that they'd like a quick summary of messages from the last X hours, the bot would do its thing and return a short passage about the main topics being discussed. This was to be a simple solution to the problem of opening up a group chat and seeing 200 undread messages. 
 
-# Implementation details
-Will be built on the [python-telegram-bot API](https://docs.python-telegram-bot.org/en/stable/index.html). Will also have to use the openAI API to do the summarization. 
+# Workflow
+The devised workflow would be as such:
 
-Can refer to the chatGPT generated information for a start. 
+1. Application (either a proper telegram account / telegram bot) is added to the group chat. 
+2. A user tags the application and asks it to summarize the group chat messages from the last X hours. 
+3. The application obtains all the group chat messages from that time period, and uses the openAI API to produce a short summary. 
+4. That summary is sent to the group chat via the same application account. 
 
-For the regular sending of the summary can look at [this utility](https://docs.python-telegram-bot.org/en/stable/telegram.ext.jobqueue.html) in the API. Otherwise there was another suggestion to have it [run as a CRON job](https://stackoverflow.com/questions/72156750/telegram-bot-to-send-auto-message-every-n-hours-with-python-telegram-bot). Second option not ideal, since I would also like the bot to be "listening" at all times for a user interaction (per idea #2). Will need to check with Rishabh how that might work when / if it reaches that stage. 
+# Bot approach
+Originally I thought this could be done using a conventional [telegram bot](https://core.telegram.org/bots/api). However telegram bots have a critical limitation: They cannot access historical chat messages in a chat group. 
 
-[Article](https://medium.com/analytics-vidhya/python-telegram-bot-with-scheduled-tasks-932edd61c534)
+The only way I can think of to make it work would be if the bot recorded each message in the group as they came in & stored them in some database. Then when the user request was made to summarize, it could access those stored messages. 
+
+# Separate Account Apparoach
+Fortunately there is an alternative. A conventional telegram user account has the permissions to access historical group chat messages. The API allows for programatic access to essentially all functionality that is available to a user via the app. 
+
+The [telethon](https://docs.telethon.dev/en/stable/index.html) package in python provides an excellent way to interface with the Telegram API in python. 
