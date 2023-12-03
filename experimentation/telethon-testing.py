@@ -3,9 +3,40 @@
 from telethon.sync import TelegramClient, events
 from dotenv import load_dotenv
 import os
+import datetime, pytz
 load_dotenv()
 # Load Bot Token, api_id and api_hash
 bot_token, api_id, api_hash=os.environ.get("KevinMaloneBot_Token"), os.environ.get('api_id'), os.environ.get('api_hash')
+
+# Chat ID for my test group chat
+test_chat_id = -4020519896
+
+# Gets messages from a specific chatid up to a certain cutoff time.
+async def get_messages(chat_id, cutoff_time):
+    # Just a placeholder fornow, will need to abstract this away to a function that computes the cutoff time when given a user instruction
+    cutoff_time = datetime.datetime.utcnow() - datetime.timedelta(hours=8)
+    # Create a timezone object for UTC
+    utc_timezone = pytz.timezone('UTC')
+    # Make the datetime object aware of the UTC timezone
+    cutoff_time = utc_timezone.localize(cutoff_time)
+
+    messages = []
+    async for message in client.iter_messages(chat_id):
+        # print(message.message, message.date)
+        if message.date < cutoff_time:
+            break
+        else:
+            messages.append(message)
+
+    # View from first to last
+    for message in messages[::-1]:
+        # Get the username of the sender
+        msg_sender = await message.get_sender()
+        msg_sender = msg_sender.username
+        # Pring message details
+        print(f"Message sent at: {message.date}\nMessage Sender: {msg_sender}\nMessage: {message.message}\n\n")
+    pass
+
 
 ##############################
 # TEST OUT THE CLIENT MEHTOD #
@@ -14,10 +45,15 @@ bot_token, api_id, api_hash=os.environ.get("KevinMaloneBot_Token"), os.environ.g
 client = TelegramClient('kmalone', api_id=api_id, api_hash=api_hash)
 
 
-@client.on(events.NewMessage)
+@client.on(events.NewMessage(incoming=True
+                             , pattern=r'@kmsum23 summarize.*'
+                             ))
 async def my_event_handler(event):
-    if 'hello' in event.raw_text:
-        await event.reply('hi!')
+    print(f"EVENT TRIGGERED\n\n{event.stringify()}\n\n")
+    print(f"MESSAGE:\n{event.message.stringify()}")
+    print(f"\nThis was from chat Id {event.chat_id}")
+
+    await event.reply('Summarization Placeholder')
 
 # This works for TelegramClients using real accounts (not bots)
 async def main():
@@ -34,7 +70,7 @@ async def main():
 
     # You can print all the dialogs/conversations that you are part of:
     async for dialog in client.iter_dialogs():
-        print(dialog.name, 'has ID', dialog.id)
+        print(dialog.name, 'has ID:', dialog.id)
 
     
 
@@ -89,5 +125,7 @@ async def main():
 
 with client:
     client.loop.run_until_complete(main())
-    client.run_until_disconnected()
+    # print(f"Service is live\n\n")
+    # client.run_until_disconnected()
+    # client.loop.run_until_complete(get_messages(test_chat_id, None))
 
