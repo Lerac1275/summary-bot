@@ -12,9 +12,9 @@ To run this you will need to have several things:
 2. An telegram account (**not** a bot). See [notes](./notes.md) for more background.
     -   The first time the application is run, you will be prompted to enter the number of the account, then key in an OTP. A `.session` object will be created so you will not need to repeat this in the future. 
 
-3. The name & `chat_id` of the group chat you want to be able to use this application in must have been added to `chat_whitelist.csv`
+3. The name & `chat_id` of the group chat you want to be able to use this application in must have been added to `./data/chat_whitelist.csv`
     - Once the application account is added to the group you may obtain the `chat_id` by messaging `@kmsum23 chat_id` when the application is running.
-    - Add it to `chat_whitelist.csv`.
+    - Add it to `./data/chat_whitelist.csv`.
 
 Once complete, call `main.py` to run the application.
 
