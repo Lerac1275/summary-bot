@@ -7,7 +7,7 @@ import helpers.parsing as par
 from telethon.sync import TelegramClient, events
 from dotenv import load_dotenv
 import os
-import datetime, pytz, pickle
+import datetime, pytz, pickle, random
 import pandas as pd
 load_dotenv()
 
@@ -31,6 +31,30 @@ async def testing_handler(event):
     print(f"\nThis was from chat Id {event.chat_id}")
     await event.reply('Test')
 
+# For testing the connection
+@client.on(events.NewMessage(incoming=True
+                             , pattern=r'@kmsum23 chat_id'
+                             ))
+async def testing_handler(event):
+    await event.reply(f"Chat id is {event.chat_id}")
+    if not par.check_chat_id(id=event.chat_id, permissible_ids=permissible_ids):
+        event.reply("This chat is not on the whitelist of permissible chat_id's")
+    else:
+        await event.reply("This chat is on the whitelist of permissible chat_id's")
+
+# Just for fun ;)
+@client.on(events.NewMessage(incoming=True
+                             , pattern=r'.*deez nuts.*'
+                             ))
+async def summarization_handler(event):
+    choices = [
+        'LOL gottem'
+        , 'LMAO gottem'
+        , 'gottem'
+    ]
+    response = random.choice(choices)
+    await event.reply(response)
+
 # Handle the command to summarize
 @client.on(events.NewMessage(incoming=True
                              , pattern=r'^@kmsum23 summarize.*'
@@ -52,16 +76,22 @@ async def summarization_handler(event):
         await event.reply("No Hours Specified")
         return
     
+    await event.reply("Sure let me try doing that for you.")
+
     # Otherwise carry on
     cutoff_time = par.obtain_cutoff_time(hours)
     # Obtain Messages, only obtain text / emoji messages for now
-    messages = await par.obtain_messages(client=client, chat_id=event.chat_id, cutoff_time=cutoff_time, text_only=True)
-    # Format messages
-    messages = await par.format_messages(messages=messages)
-
+    messages = await par.obtain_messages(client=client, chat_id=event.chat_id, earliest_time=cutoff_time, text_only=True)
     
+    # Perform the summarization
+    await event.reply("Creating the summary . . . ")
+    summarizer = Summarizer(messages=messages, model="gpt-3.5-turbo-1106")
+    try:
+        summary = await summarizer.summarize_simple()
+        await event.reply(f"Summarized {len(messages)} Messages\n\n{summary}")
+    except Exception as e:
+        event.reply(f"Sorry, failed because of:\n\n{e}")
 
-    await event.reply('Summarization Placeholder')
 
 
 # To run the application

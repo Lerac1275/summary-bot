@@ -4,6 +4,8 @@
 
 # For privacy reasons
 /data/*.pkl
+/experimentation/test-langchain.ipynb
+/experimentation/test-telethon.ipynb
 # /experimentation/test-langchain.ipynb
 
 # Byte-compiled / optimized / DLL files
