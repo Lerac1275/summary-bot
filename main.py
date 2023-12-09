@@ -7,7 +7,7 @@ import helpers.parsing as par
 from telethon.sync import TelegramClient, events
 from dotenv import load_dotenv
 import os
-import datetime, pytz, pickle, random
+import datetime, pytz, pickle, random, asyncio
 import pandas as pd
 load_dotenv()
 
@@ -44,16 +44,15 @@ async def testing_handler(event):
 
 # Just for fun ;)
 @client.on(events.NewMessage(incoming=True
-                             , pattern=r'.*deez nuts.*'
+                             , pattern=r".*"+(r".*|.*".join(par.get_joke_mappings())) + r".*"
                              ))
 async def summarization_handler(event):
-    choices = [
-        'LOL gottem'
-        , 'LMAO gottem'
-        , 'gottem'
-    ]
-    response = random.choice(choices)
-    await event.reply(response)
+    response = await par.joke_replies(event.message.message)
+    if response:
+        await asyncio.sleep(1)
+        await event.reply(response)
+    else:
+        return
 
 # Handle the command to summarize
 @client.on(events.NewMessage(incoming=True
@@ -95,6 +94,7 @@ async def summarization_handler(event):
 
 # To run the application
 with client:
+    print("Application is live")
     # client.loop.run_until_complete(main())
     # print(f"Service is live\n\n")
     client.run_until_disconnected()

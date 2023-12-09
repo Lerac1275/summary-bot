@@ -1,6 +1,32 @@
 from telethon.sync import TelegramClient, events
 from telethon.tl.custom.message import Message
-import datetime, pytz, pickle, os, re
+import datetime, pytz, pickle, os, re, random
+
+def get_joke_mappings():
+    joke_mapping = {
+        'deez nuts' : [
+            'LOL gottem'
+            , 'LMAO gottem'
+            , 'GOTTEEEM'
+        ]
+        , "boolets" : [
+            '🗣🗣🗣 I NEED MORE BOOOOOLLETS 🗣🗣🗣'
+            , "Let's go to the gym buddy 💪💪"
+        ]
+        , "she said" : ['That\'s what she said 😗', 'That\'s what she said 😗', ""]
+
+        , "shag" : ['It do be like that some times 😕', ""]
+    }
+    return joke_mapping
+
+async def joke_replies(string:str):
+    for k, v in get_joke_mappings().items():
+        match = re.search(rf"{k}", string, flags=re.IGNORECASE)
+        if match:
+            return random.choice(v)
+    
+    return ""
+    
 
 # Checks the chat_id
 def check_chat_id(id:int, permissible_ids:list[int]) -> bool:
