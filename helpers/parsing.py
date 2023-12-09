@@ -2,6 +2,7 @@ from telethon.sync import TelegramClient, events
 from telethon.tl.custom.message import Message
 import datetime, pytz, pickle, os, re, random
 
+
 def get_joke_mappings():
     joke_mapping = {
         'deez nuts' : [
@@ -9,7 +10,12 @@ def get_joke_mappings():
             , 'LMAO gottem'
             , 'GOTTEEEM'
         ]
-        , "boolets" : [
+        , "boollets" : [
+            '🗣🗣🗣 I NEED MORE BOOOOOLLETS 🗣🗣🗣'
+            , "Let's go to the gym buddy 💪💪"
+        ]
+
+        , "bullets" : [
             '🗣🗣🗣 I NEED MORE BOOOOOLLETS 🗣🗣🗣'
             , "Let's go to the gym buddy 💪💪"
         ]
@@ -18,6 +24,14 @@ def get_joke_mappings():
         , "shag" : ['It do be like that some times 😕', ""]
     }
     return joke_mapping
+
+def joke_filter(event):
+    msg = event.message.message
+    keys = list(get_joke_mappings().keys())
+    for k in keys:
+        if re.search(f"{k}", msg, flags=re.IGNORECASE):
+            return True
+    return False
 
 async def joke_replies(string:str):
     for k, v in get_joke_mappings().items():

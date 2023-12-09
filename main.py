@@ -42,11 +42,13 @@ async def testing_handler(event):
     else:
         await event.reply("This chat is on the whitelist of permissible chat_id's")
 
+
+                            
 # Just for fun ;)
 @client.on(events.NewMessage(incoming=True
-                             , pattern=r".*"+(r".*|.*".join(par.get_joke_mappings())) + r".*"
-                             ))
+                             , func=par.joke_filter))
 async def summarization_handler(event):
+    print(f"Joke at {datetime.datetime.utcnow()}\n")
     response = await par.joke_replies(event.message.message)
     if response:
         await asyncio.sleep(1)
