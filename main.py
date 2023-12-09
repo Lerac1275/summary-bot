@@ -44,7 +44,7 @@ async def testing_handler(event):
 
 # Just for fun ;)
 @client.on(events.NewMessage(incoming=True
-                             , pattern=r".*"+(r".*|.*".join(par.get_joke_mappings())) + r".*"
+                             , pattern=r"(?i.).*"+(r".*|.*".join(par.get_joke_mappings())) + r".*"
                              ))
 async def summarization_handler(event):
     response = await par.joke_replies(event.message.message)
