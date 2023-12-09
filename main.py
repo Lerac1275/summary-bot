@@ -57,7 +57,7 @@ async def summarization_handler(event):
 
 # Handle the command to summarize
 @client.on(events.NewMessage(incoming=True
-                             , pattern=r'^@kmsum23 summarize.*'
+                             , pattern=r'^@kmsum23 summarize last.*'
                              ))
 async def summarization_handler(event):
     print(f"EVENT TRIGGERED\n\n{event.stringify()}\n\n")
@@ -69,19 +69,18 @@ async def summarization_handler(event):
         await event.reply("You cannot call this program from this chat.")
         return
     
-    # Otherwise obtain the cutoff time
-    hours = par.obtain_hours(event.message.message)
-    # If no hours found then reply 
-    if not hours:
-        await event.reply("No Hours Specified")
+    messages = await par.obtain_messages(client=client, command_string=event.message.message, chat_id=event.chat_id)
+
+    # Need to tidy up this error handling
+    if isinstance(messages, Exception): # if the message obtainment failed for whatever reason
+        if isinstance(messages, AttributeError):
+            await event.reply(f"Message loading failed, likely because your command does not match the recognized format.")
+        else:
+            await event.reply(f"Message loading failed due to:\n\n{messages}")
         return
     
+    
     await event.reply("Sure let me try doing that for you.")
-
-    # Otherwise carry on
-    cutoff_time = par.obtain_cutoff_time(hours)
-    # Obtain Messages, only obtain text / emoji messages for now
-    messages = await par.obtain_messages(client=client, chat_id=event.chat_id, earliest_time=cutoff_time, text_only=True)
     
     # Perform the summarization
     await event.reply("Creating the summary . . . ")
@@ -90,7 +89,7 @@ async def summarization_handler(event):
         summary = await summarizer.summarize_simple()
         await event.reply(f"Summarized {len(messages)} Messages\n\n{summary}")
     except Exception as e:
-        event.reply(f"Sorry, failed because of:\n\n{e}")
+       await event.reply(f"Sorry, failed because of:\n\n{e}")
 
 
 

@@ -5,23 +5,22 @@ import datetime, pytz, pickle, os, re
 # Checks the chat_id
 def check_chat_id(id:int, permissible_ids:list[int]) -> bool:
     return id in permissible_ids
-    
+        
+async def obtain_cutoff_time(n_hours:int, start_time:datetime.datetime=datetime.datetime.utcnow()) -> datetime.datetime:
+    """
+    Obtain the earliest time for retrieving messages based on the user input
 
-def obtain_hours(msg:str) -> int:
-    """
-    Returns the number of hours to retrieve messages for
-    """
-    pattern = r'last (\d+) hour'
-    match = re.search(pattern, msg)
-    if match:
-        hours = int(match.group(1))
-        return hours
-    else:
-        return None
+    PARAMETERS
+    ----------
+    n_hours: int
+        How many hours back to look from the startime
+    start_time: datetime.datetime
+        What the start time is for looking back. Needs to be in utc time
     
-def obtain_cutoff_time(n_hours:int, start_time:datetime.datetime=datetime.datetime.utcnow()) -> datetime.datetime:
-    """
-    Obtain the cutoff time for retrieving messages
+    RETURNS
+    -------
+    datetime.datetime
+
     """
     try:
         cutoff_time = start_time - datetime.timedelta(hours=n_hours)
@@ -36,9 +35,61 @@ def obtain_cutoff_time(n_hours:int, start_time:datetime.datetime=datetime.dateti
         None
     return cutoff_time
 
-async def obtain_messages(client:TelegramClient, chat_id:int, earliest_time:datetime.datetime, text_only:bool=False, latest_time:datetime.datetime=datetime.datetime.utcnow()) -> list[Message]:
+async def obtain_messages_last_n(client:TelegramClient, chat_id:int, n_messages:int, text_only = False) -> list[Message]:
     """
-    Obtain the list of messages, will return the actual message object
+    Obtain the list of messages based on TIME, will return the actual message object. Note that the datetime attached to telethon Message objects are ALWAYS IN UTC.
+
+    PARAMETERS
+    ----------
+    client: TelegramClient
+        TelegramClient object used to make the API requests to obtain message objects
+    chat_id:int
+        The chat_id from which to retrieve the message
+    text_only:bool
+        Whether or not to filter for only messages that have some text (gifs / stickers / photos / videos have no text)
+    
+    RETURNS
+    -------
+    list[Message]
+        A list of telethon Message objects
+    """
+    messages = []
+    idx = 0 # is there a way to get iter() to work asynchronously?
+    async for message in client.iter_messages(chat_id):
+        idx +=1
+        # Stop if the we have reached the no. of messages requested
+        if idx > n_messages:
+            break
+        else:
+            messages.append(message)
+    
+    if text_only:
+        messages = list(filter(lambda x: not x.document, messages))
+
+    return messages
+
+
+async def obtain_messages_time(client:TelegramClient, chat_id:int, earliest_time:datetime.datetime, text_only:bool=False, latest_time:datetime.datetime=datetime.datetime.utcnow()) -> list[Message]:
+    """
+    Obtain the list of messages based on TIME, will return the actual message object. Note that the datetime attached to telethon Message objects are ALWAYS IN UTC.
+
+    PARAMETERS
+    ----------
+    client: TelegramClient
+        TelegramClient object used to make the API requests to obtain message objects
+    chat_id:int
+        The chat_id from which to retrieve the message
+    earliest_time: datetime.datetime
+        earliest possible datetime for a Message to be included. Will stop iterating backwards once a message is earlier than this time.
+    text_only:bool
+        Whether or not to filter for only messages that have some text (gifs / stickers / photos / videos have no text)
+    latest_time : datetime.datetime
+        When to start iterating backwards from
+    
+    RETURNS
+    -------
+    list[Message]
+        A list of telethon Message objects
     """
     messages = []
     async for message in client.iter_messages(chat_id, offset_date=latest_time):
@@ -53,14 +104,37 @@ async def obtain_messages(client:TelegramClient, chat_id:int, earliest_time:date
 
     return messages
 
-async def construct_chat_simple(messages:dict):
+async def obtain_messages(client:TelegramClient, command_string:str, chat_id:int)-> list[Message]:
     """
-    Simple chat construction based on messages. Returns one chat string where each line is a chat message in the form <U>username</U>: message
+    Main method used to obtain the chat messages for summarization. Currently supports two ways of retrieving messasges: last n hour(s) OR last n messages/msgs. This is the main method that calls the helper methods obtain_messages_time() OR obtain_messagse_last_n()
+
+    PARAMETERS
+    ----------
+    client: TelegramClient
+        TelegramClient object used to make the API requests to obtain message objects
+    command_string:str
+        The event message string that triggered the event handler in the application. Used to determine the retrival type to perform, and the number of messages / hours to use
+    chat_id:int
+        The chat_id from which to retrieve the message
+    
+    RETURNS
+    -------
+    list[Message]
+        A list of telethon Message objects
     """
-    chat_components = []
-    for message in messages:
-        username = message['names'][0]
-        message = message['message']
-        comp = f"<U>{username}</U>: {message}"
-        chat_components.append(comp)
-    return chat_components
+    # Obtain the number & whether it's hours or messages
+    try:
+        n, type = re.search(r"(\d+) (messages|msgs|hours{0,1})", command_string).groups()
+        n = int(n)
+    except Exception as e:
+        return e
+    # Obtain messages based on last n hours
+    if "hour" in type:
+        cutoff_time = await obtain_cutoff_time(n_hours=n)
+        messages = await obtain_messages_time(client=client, chat_id=chat_id, earliest_time=cutoff_time, text_only=True)
+    
+    # Obtain messages based on last n messages
+    else:
+        messages = await obtain_messages_last_n(client=client, chat_id=chat_id, n_messages=n, text_only=False)
+    
+    return messages

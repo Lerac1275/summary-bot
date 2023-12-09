@@ -10,7 +10,8 @@ from langchain.chat_models import ChatOpenAI
 class Summarizer:
     def __init__(self, messages:list[dict], model:str='gpt-4', api_key = lambda x : openai_api_key):
         """
-        Initialize the Summarizer instance. 
+        Initialize the Summarizer instance. This is the class object used to store message objects, format them & obtain the summary from openai. Masking is also performed to conceal user sender identities. 
+
 
         Parameters
         ----------
@@ -18,6 +19,8 @@ class Summarizer:
             The list of messages to be summmarized. Each message is store in a dictionary containing the main message text along with other metadata (such as sender username etc).
         model: str, default "gpt-4"
             The LLM model to be used to the token generation. See more at https://platform.openai.com/docs/models/overview
+        api_key: function
+            A function that returns the api_key given any input.
         """
         self.model = model
         self.messages = messages
