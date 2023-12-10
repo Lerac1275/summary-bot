@@ -5,10 +5,11 @@ load_dotenv()
 openai_api_key = os.environ['openai_key']
 from langchain.prompts import ChatPromptTemplate
 from langchain.chat_models import ChatOpenAI
+from pprint import pprint
 
 
 class Summarizer:
-    def __init__(self, messages:list[dict], model:str='gpt-4', api_key = lambda x : openai_api_key):
+    def __init__(self, messages:list[dict], model:str="gpt-3.5-turbo-1106", api_key = lambda x : openai_api_key):
         """
         Initialize the Summarizer instance. This is the class object used to store message objects, format them & obtain the summary from openai. Masking is also performed to conceal user sender identities. 
 
@@ -29,8 +30,6 @@ class Summarizer:
         self.formatted_messages = None
         # For name mappings. Used to perform masking
         self.name_mappings = None
-        # The chat string to be sent over to openai
-        self.chat_string = None
     
     # Simple info. extraction from message list
     async def _format_simple(self) -> list[dict]:
@@ -50,6 +49,8 @@ class Summarizer:
             
             # Get all possible names of the user, filtering for None values
             msg_sender_names = await message.get_sender()
+            # Is this the self (i.e the same account as the application)
+            is_self = msg_sender_names.is_self
             # Note that the username will ALWAYS be populated, and is the first element of this list
             msg_sender_names = list(filter(lambda x: x, [msg_sender_names.username, msg_sender_names.first_name, msg_sender_names.last_name]))
             
@@ -65,6 +66,7 @@ class Summarizer:
                 'names' : msg_sender_names
                 , 'replied_message':replied_msg
                 , 'message':message.message
+                , 'is_self':is_self
             }
             
             # Store        
@@ -73,25 +75,28 @@ class Summarizer:
         self.formatted_messages = formatted_messages
 
     # Make and store name mappings
-    async def _make_name_mask(self):
+    async def _make_name_mask(self, prefix="name"):
         """
         Obtains the set of name-masking mappings and stores it as an attribute for use later on
         """
         try:
             unique_names = {tuple(x) for x in  map(lambda x: x['names'], self.formatted_messages)}
             # Will need to keep this to map back
-            name_mappings = {f"name{i+1}":list(unique_names)[i] for i in range(len(unique_names))}
+            name_mappings = {f"{prefix}{i+1}":list(unique_names)[i] for i in range(len(unique_names))}
             self.name_mappings = name_mappings
         except TypeError as e:
             raise TypeError("self.formatted_messages is still None. Have you obtained any formatted messages yet?")
 
-    # Construct the chat string in a simple manner
-    async def _make_chat_string_simple(self):
+    # Construct the summarizer string in a simple manner
+    async def _make_summarizer_string_simple(self, formatted_msgs = None):
         """
         Simple chat construction based on messages. Returns one chat string where each line is a chat message in the form <U>username</U>: message
         """
         chat_components = []
-        for message in self.formatted_messages:
+        if not formatted_msgs:
+            formatted_msgs = self.formatted_messages
+        
+        for message in formatted_msgs:
             # Recall that username will always be the FIRST element
             username = message['names'][0]
             message = message['message']
@@ -99,7 +104,54 @@ class Summarizer:
             chat_components.append(comp)
         
         chat_string = "\n".join(chat_components)
-        self.chat_string = chat_string
+        return chat_string
+
+    async def _make_chat_message_list(self):
+        chat_message_list = []
+        # Accumulate all chat messages not from the application
+        tmp = []
+        # Save the last message since that one will be the main prompt for this call 
+        for message in self.formatted_messages[:-1]:
+            # Reached a message from the application
+            if message['is_self']:
+                # There are messsages not yet added to the chat_message_list
+                if tmp:
+                    # Turn them into a single conversation log string
+                    chat_create = await self._make_summarizer_string_simple(formatted_msgs=tmp)
+                    chat_message_list.append(("human", chat_create))
+                
+                # Append the AI reponse to the chat_message list
+                chat_message_list.append(("ai", message['message']))
+                # Reset TMP
+                tmp = []
+
+            else:
+                tmp.append(message)
+        
+        # Take care of anything left over in tmp 
+        if tmp:
+            chat_create = await self._make_summarizer_string_simple(formatted_msgs=tmp)
+        else:
+            chat_create = ""
+        
+        prompt = self.formatted_messages[-1]['message']
+        prompt = re.search("(?<=chat ).*", prompt).group(0)
+
+        main_prompt = ""
+        if chat_create:
+            main_prompt = 'These are the new chat messages since the last response:\n\n'\
+                          f"{chat_create}"\
+                          "\n\nUse this new context only if relevant to answer this question: "
+            
+        main_prompt += prompt
+        chat_message_list.append(('human', main_prompt))
+
+        return chat_message_list
+
+
+
+
+
 
     async def _perform_mask(self, chat_string:str, outgoing=True):
         """
@@ -124,27 +176,12 @@ class Summarizer:
         
         return chat_string
     
-    async def get_response(self, chat_string:str, example_input:str, example_response:str):
-        system_message = """
-        You will be given excerpts of messages from a group chat. 
-
-        The name of the user who sent a message is between the <U> </U> tags. 
-
-        Your task is to summarize the various conversations that took place in the group chat. For each conversation write a short summary of the points raised. 
-
-        Split the final summary into smaller paragraphs of maximum 3 sentences each.
-        """
-
+    async def get_response(self, message_list):
         chat_template = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_message),
-                ("human", "{example_input}"),
-                ("ai", "{example_response}"),
-                ("human", "{chat_string}"),
-            ]
+            message_list
         )
 
-        prompt = chat_template.format_messages(example_input = example_input, example_response=example_response, chat_string=chat_string)
+        prompt = chat_template.format_messages()
 
         llm = ChatOpenAI(
             model_name = self.model
@@ -168,22 +205,34 @@ class Summarizer:
         Summarizes the messages in a simple manner (no reply inclusion, no aggregating messages to a user), calls the helper _simple_ methods to do so
         """
 
-        user_example = """
-        <U>n1</U>: Wow the weather is really warm today
-        <U>n1</U>: What are ya'll doing today pals. I'm going to cycling hohoho.
-        <U>n2</U>: Ya sia today damn hot. Sweating like a dog bruh
-        <U>n2</U>: Going out with my parents for lunch then watching a movie with YZ
-        <U>n2</U>: WBU
-        <U>n3</U>: Ya it's too hot already. I need the aircon. 
-        <U>n3</U>: Man is going to study today. I got my final exam next week
-        <U>n3</U>: Can't wait to go out hahaha
-        <U>n3</U>: Lunch after finals pals?
-        <U>n2</U>: Okay where u want eat
-        <U>n1</U>: ATB for your exams @n3. You go this!
-        <U>n1</U>: Ok sure we discuss after ur exams
+        system_message = """
+        You will be given excerpts of messages from a group chat. 
+
+        The name of the user who sent a message is between the <U> </U> tags. 
+
+        Your task is to summarize the various conversations that took place in the group chat. For each conversation write a short summary of the points raised. 
+
+        Split the final summary into smaller paragraphs of maximum 3 sentences each.
         """
 
-        ai_example = "Everyone agrees the weather is extremely warm.\n\nn1 is going to spend the day cycling, n2 is lunching with his parents then watching a movie with YZ, and n3 is studying for his final exams next week.\n\nn3 is looking forward to their exams ending, and everyone agrees to arrange a meal togehter once it ends."
+        user_example = """
+        <U>name1</U>: Wow the weather is really warm today
+        <U>name1</U>: What are ya'll doing today pals. I'm going to cycling hohoho.
+        <U>name2</U>: Ya sia today damn hot. Sweating like a dog bruh
+        <U>name2</U>: Going out with my parents for lunch then watching a movie with YZ
+        <U>name2</U>: WBU
+        <U>name3</U>: Ya it's too hot already. I need the aircon. 
+        <U>name3</U>: Man is going to study today. I got my final exam next week
+        <U>name3</U>: Can't wait to go out hahaha
+        <U>name3</U>: Lunch after finals pals?
+        <U>name2</U>: Okay where u want eat
+        <U>name1</U>: ATB for your exams @n3. You go this!
+        <U>name1</U>: Ok sure we discuss after ur exams
+        """
+
+        ai_example = "Everyone agrees the weather is extremely warm."\
+                    "\n\nname1 is going to spend the day cycling, name2 is lunching with his parents then watching a movie with YZ, and name3 is studying for his final exams next week."\
+                    "\n\nname3 is looking forward to their exams ending, and everyone agrees to arrange a meal togehter once it ends."
 
         # format the messages
         await self._format_simple()
@@ -192,14 +241,20 @@ class Summarizer:
         await self._make_name_mask()
 
         # Make the chat string
-        await self._make_chat_string_simple()
+        chat_string = await self._make_summarizer_string_simple()
 
         # Do name masking for outgoing text
-        masked_chat_string = await self._perform_mask(self.chat_string, outgoing=True)
+        masked_chat_string = await self._perform_mask(chat_string, outgoing=True)
 
         # Obtain the response
         print("Obtaining Summary . . . ", end="")
-        summary = await self.get_response(chat_string=masked_chat_string, example_input=user_example, example_response=ai_example)
+        message_list = [
+                ("system", f"{system_message}"),
+                ("human", f"{user_example}"),
+                ("ai", f"{ai_example}"),
+                ("human", f"{masked_chat_string}"),
+            ]
+        summary = await self.get_response(message_list)
         print("Done!")
 
         # Do the unmasking
@@ -207,6 +262,50 @@ class Summarizer:
 
         # Return the summary
         return summary
+    
+    async def chat_simple(self):
+        """
+        Construct the chat thread chain and obtain the chat response
+        """
+
+        system_message = f"You are a chatbot embedded in a group chat. Your purpose is to answer questions the group members may have."\
+                        f"\nOnly if relvant, refer to the chat logs provided to you to answer questions that refer to the context of the group chat. Otherwise use your own knowledge."\
+                        f"\nIf you feel you don't have enough context of the group chat to answer, just try your best. Otherwise just reply with a 🤷‍♂️"\
+                        f"\nSplit your response into paragraphs of not more than 3 sentences each."\
+
+        # format the messages. This will make the last message in self.formatted_messages the MOST RECENT ONE
+        await self._format_simple()
+
+        # Set the masked names
+        await self._make_name_mask()
+
+        # Construct the chat string
+        chat_message_list = await self._make_chat_message_list()
+
+        print("Chat Message List to be sent is:\n")
+        pprint(chat_message_list)
+        print("\n")
+        # Do name masking for outgoing text
+        masked_message_list = []
+        for msg in chat_message_list:
+            type, text = msg
+            text = await self._perform_mask(text, outgoing=True)
+            masked_message_list.append((type, text))
+
+        # Add the system message
+        masked_message_list = [('system', system_message)] + masked_message_list
+        
+        # Get the API response
+        response = await self.get_response(masked_message_list)
+
+        # Do the unmasking
+        response = await self._perform_mask(chat_string=response, outgoing=False)
+
+        return response
+
+
+
+
 
 
 

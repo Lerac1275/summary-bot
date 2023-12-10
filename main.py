@@ -70,7 +70,7 @@ async def summarization_handler(event):
         await event.reply("You cannot call this program from this chat.")
         return
     
-    messages = await par.obtain_messages(client=client, command_string=event.message.message, chat_id=event.chat_id)
+    messages = await par.obtain_messages_summary(client=client, command_string=event.message.message, chat_id=event.chat_id)
 
     # Need to tidy up this error handling
     if isinstance(messages, Exception): # if the message obtainment failed for whatever reason
@@ -88,10 +88,29 @@ async def summarization_handler(event):
     summarizer = Summarizer(messages=messages, model="gpt-3.5-turbo-1106")
     try:
         summary = await summarizer.summarize_simple()
-        await event.reply(f"Summarized {len(messages)} Messages\n\n{summary}")
+        await event.reply(f"Summarized {len(messages)} Messages at {event.message.date}\n\n{summary}")
+        # Not sure if this is really needed or if garbage collection will handle this
+        del summarizer
+        del messages
     except Exception as e:
        await event.reply(f"Sorry, failed because of:\n\n{e}")
 
+
+# Handle the command to chat
+@client.on(events.NewMessage(incoming=True
+                             , pattern=r'^@kmsum23 chat.+'
+                             ))
+async def chat_handler(event):
+    try:
+        messages = await par.obtain_messages_chat(client=client, chat_msg=event.message)
+        chat_obj = Summarizer(messages=messages)
+        print("obtained_msgs")
+        response = await chat_obj.chat_simple()
+        print(f"obtained response:\n{response}")
+        await event.reply(response)
+    except Exception as e:
+        await event.reply(f"Failed to generate response due to:\n\n{e}")
+    pass
 
 
 # To run the application

@@ -10,18 +10,20 @@ def get_joke_mappings():
             , 'LMAO gottem'
             , 'GOTTEEEM'
         ]
-        , "boollets" : [
+        , "boollet" : [
             '🗣🗣🗣 I NEED MORE BOOOOOLLETS 🗣🗣🗣'
             , "Let's go to the gym buddy 💪💪"
         ]
 
-        , "bullets" : [
+        , "bullet" : [
             '🗣🗣🗣 I NEED MORE BOOOOOLLETS 🗣🗣🗣'
             , "Let's go to the gym buddy 💪💪"
         ]
         , "she said" : ['That\'s what she said 😗', 'That\'s what she said 😗', ""]
 
         , "shag" : ['It do be like that some times 😕', ""]
+
+        , 'it is what it is' : ['✊😔', '✊😔', '']
     }
     return joke_mapping
 
@@ -46,12 +48,12 @@ async def joke_replies(string:str):
 def check_chat_id(id:int, permissible_ids:list[int]) -> bool:
     return id in permissible_ids
         
-async def obtain_cutoff_time(n_hours:int, start_time:datetime.datetime=datetime.datetime.utcnow()) -> datetime.datetime:
+async def obtain_cutoff_time(n_hours:int, start_time:datetime.datetime=None) -> datetime.datetime:
     """
     Obtain the earliest time for retrieving messages based on the user input
 
     PARAMETERS
-    ----------
+    ---------- 
     n_hours: int
         How many hours back to look from the startime
     start_time: datetime.datetime
@@ -62,6 +64,8 @@ async def obtain_cutoff_time(n_hours:int, start_time:datetime.datetime=datetime.
     datetime.datetime
 
     """
+    if not start_time:
+        start_time = datetime.datetime.utcnow()
     try:
         cutoff_time = start_time - datetime.timedelta(hours=n_hours)
     except TypeError as e:
@@ -144,7 +148,7 @@ async def obtain_messages_time(client:TelegramClient, chat_id:int, earliest_time
 
     return messages
 
-async def obtain_messages(client:TelegramClient, command_string:str, chat_id:int)-> list[Message]:
+async def obtain_messages_summary(client:TelegramClient, command_string:str, chat_id:int)-> list[Message]:
     """
     Main method used to obtain the chat messages for summarization. Currently supports two ways of retrieving messasges: last n hour(s) OR last n messages/msgs. This is the main method that calls the helper methods obtain_messages_time() OR obtain_messagse_last_n()
 
@@ -178,3 +182,19 @@ async def obtain_messages(client:TelegramClient, command_string:str, chat_id:int
         messages = await obtain_messages_last_n(client=client, chat_id=chat_id, n_messages=n, text_only=False)
     
     return messages
+
+async def obtain_messages_chat(client:TelegramClient, chat_msg:Message)-> list[Message]:
+    """
+    Get all the messages in the message thread that chat_msg is a part of (if any)
+    """
+    messages = [chat_msg]
+    last_msg = chat_msg
+    # Go up the thread, retrieving all messages
+    while last_msg and last_msg.is_reply:
+        messages.append(last_msg)
+        last_msg = await last_msg.get_reply_message()
+
+    return messages
+
+
+
