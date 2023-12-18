@@ -19,9 +19,8 @@ def get_joke_mappings():
             '🗣🗣🗣 I NEED MORE BOOOOOLLETS 🗣🗣🗣'
             , "Let's go to the gym buddy 💪💪"
         ]
-        , "she said" : ['That\'s what she said 😗', 'That\'s what she said 😗', ""]
 
-        , "shag" : ['It do be like that some times 😕', ""]
+        , "shag" : ['It do be like that some times 😕', "", ""]
 
         , 'it is what it is' : ['✊😔', '✊😔', '']
     }
@@ -113,7 +112,7 @@ async def obtain_messages_last_n(client:TelegramClient, chat_id:int, n_messages:
     return messages
 
 
-async def obtain_messages_time(client:TelegramClient, chat_id:int, earliest_time:datetime.datetime, text_only:bool=False, latest_time:datetime.datetime=datetime.datetime.utcnow()) -> list[Message]:
+async def obtain_messages_time(client:TelegramClient, chat_id:int, earliest_time:datetime.datetime, text_only:bool=False, latest_time:datetime.datetime = None) -> list[Message]:
     """
     Obtain the list of messages based on TIME, will return the actual message object. Note that the datetime attached to telethon Message objects are ALWAYS IN UTC.
 
@@ -135,6 +134,9 @@ async def obtain_messages_time(client:TelegramClient, chat_id:int, earliest_time
     list[Message]
         A list of telethon Message objects
     """
+    if not latest_time:
+        # 5 seconds prior so the triggering messsage itself isn't included
+        latest_time = datetime.datetime.utcnow() - datetime.timedelta(seconds=5)
     messages = []
     async for message in client.iter_messages(chat_id, offset_date=latest_time):
         # Stop if the we have reached messages th
@@ -169,6 +171,7 @@ async def obtain_messages_summary(client:TelegramClient, command_string:str, cha
     # Obtain the number & whether it's hours or messages
     try:
         n, type = re.search(r"(\d+) (messages|msgs|hours{0,1})", command_string).groups()
+        print(type)
         n = int(n)
     except Exception as e:
         return e
@@ -197,4 +200,21 @@ async def obtain_messages_chat(client:TelegramClient, chat_msg:Message)-> list[M
     return messages
 
 
+# Utility function to convert a given datetime string to utc. Used for testing.
+def convert_to_utc(datetime_str, country_region:str="Asia/Singapore"):
+    """
+    datetime_str needs to be in the form "YYYY-MM-DD HH:MM:SS"
+    """
+    # Parse the input datetime string
+    input_datetime = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
 
+    # Get the time zone for the specified country/region
+    local_timezone = pytz.timezone(country_region)
+
+    # Localize the input datetime to the specified time zone
+    localized_datetime = local_timezone.localize(input_datetime)
+
+    # Convert the localized datetime to UTC
+    utc_datetime = localized_datetime.astimezone(pytz.utc)
+
+    return utc_datetime

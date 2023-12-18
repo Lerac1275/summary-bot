@@ -79,6 +79,9 @@ async def summarization_handler(event):
         else:
             await event.reply(f"Message loading failed due to:\n\n{messages}")
         return
+    elif len(messages) == 0:
+        await event.reply(f"No messages dedected for the specified window. Nothing to summarize")
+        return
     
     
     await event.reply("Sure let me try doing that for you.")

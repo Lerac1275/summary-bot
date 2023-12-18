@@ -107,6 +107,24 @@ class Summarizer:
         return chat_string
 
     async def _make_chat_message_list(self):
+        """
+        Goes through the formatted messages and constructs the a chat message list of the form 
+        [
+            ('human', <human message>)
+            , ('ai', <ai message>)
+            , ('human', <human message>)
+            , ('ai', <ai message>)
+            , . . . 
+        ]
+
+        In this case the <human message> is the chat history log in the form of <USERNAME>:<MESSAGE>. 
+        <ai message> is the response from the chatbot application. This is identified using the "is_self" field in the message.
+
+        Iterate through the list of formatted messages. Construct the chat log string in the usual <USERNAME>:<MESSAGE> format (one message is one line entry) until we encounter a message that was sent by the application itself. We assume this means there was a previous call to the chatbot that it responded to. That message is then added to the chat_message_list in the aforementioned format. 
+
+        Then we start cosntructing a new 
+
+        """
         chat_message_list = []
         # Accumulate all chat messages not from the application
         tmp = []
@@ -159,7 +177,7 @@ class Summarizer:
         """
 
         if not self.name_mappings:
-            raise Exception("self.name_mappings is still None. Call make_name_mask() to set it to the names for the given message set.")
+            raise Exception(f"self.name_mappings is {self.name_mappings}. Call make_name_mask() to set it to the names for the given message set.")
         
         # If this is for an OUTGOING chat string (being sent to the api)
         if outgoing:
@@ -252,7 +270,7 @@ class Summarizer:
                 ("system", f"{system_message}"),
                 ("human", f"{user_example}"),
                 ("ai", f"{ai_example}"),
-                ("human", f"{masked_chat_string}"),
+                ("human", f"Ignore the previous messages and summarize just these now:\n\n{masked_chat_string}"),
             ]
         summary = await self.get_response(message_list)
         print("Done!")
