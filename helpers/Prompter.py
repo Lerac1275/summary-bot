@@ -151,9 +151,9 @@ class Summarizer:
             chat_create = await self._make_summarizer_string_simple(formatted_msgs=tmp)
         else:
             chat_create = ""
-        
+        # This formats the most recent message in the chain
         prompt = self.formatted_messages[-1]['message']
-        prompt = re.search("(?<=chat ).*", prompt).group(0)
+        prompt = re.search("(?<=@kmsum23 ).*", prompt).group(0)
 
         main_prompt = ""
         if chat_create:

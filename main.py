@@ -6,7 +6,7 @@ from helpers.Prompter import Summarizer
 import helpers.parsing as par
 from telethon.sync import TelegramClient, events
 from dotenv import load_dotenv
-import os
+import os, re
 import datetime, pytz, pickle, random, asyncio
 import pandas as pd
 load_dotenv()
@@ -83,11 +83,7 @@ async def summarization_handler(event):
         await event.reply(f"No messages dedected for the specified window. Nothing to summarize")
         return
     
-    
-    await event.reply("Sure let me try doing that for you.")
-    
     # Perform the summarization
-    await event.reply("Creating the summary . . . ")
     summarizer = Summarizer(messages=messages, model="gpt-3.5-turbo-1106")
     try:
         summary = await summarizer.summarize_simple()
@@ -101,9 +97,13 @@ async def summarization_handler(event):
 
 # Handle the command to chat
 @client.on(events.NewMessage(incoming=True
-                             , pattern=r'^@kmsum23 chat.+'
+                             , pattern=r'^@kmsum23 \w+'
                              ))
 async def chat_handler(event):
+    message_text = event.message.message
+    # Trashy fix. Need to properly overhaul how messages are handled. Issue now is that multiple message handlers can be triggered by one message. This is just a temporary fix so that this one isn't called mistakenly
+    if re.search(r"^@kmsum23 summarize last.*", message_text) or re.search(r"^@kmsum23 chat_id", message_text):
+        return
     try:
         messages = await par.obtain_messages_chat(client=client, chat_msg=event.message)
         chat_obj = Summarizer(messages=messages)
