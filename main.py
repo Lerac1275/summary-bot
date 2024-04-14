@@ -84,15 +84,19 @@ async def summarization_handler(event):
         return
     
     # Perform the summarization
-    summarizer = Summarizer(messages=messages, model="gpt-3.5-turbo-1106")
+    summarizer = Summarizer(messages=messages)
+    summary=None
     try:
         summary = await summarizer.summarize_simple()
+    except Exception as e:
+       await event.reply(f"Sorry, failed because of:\n\n{e}")
+
+    if summary:   
+        # Reply with the summary
         await event.reply(f"Summarized {len(messages)} Messages at {event.message.date}\n\n{summary}")
         # Not sure if this is really needed or if garbage collection will handle this
         del summarizer
         del messages
-    except Exception as e:
-       await event.reply(f"Sorry, failed because of:\n\n{e}")
 
 
 # Handle the command to chat
@@ -107,7 +111,7 @@ async def chat_handler(event):
     try:
         messages = await par.obtain_messages_chat(client=client, chat_msg=event.message)
         chat_obj = Summarizer(messages=messages)
-        print("obtained_msgs")
+        print("\n\nobtained_msgs")
         response = await chat_obj.chat_simple()
         print(f"obtained response:\n{response}")
         await event.reply(response)

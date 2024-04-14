@@ -9,7 +9,7 @@ from pprint import pprint
 
 
 class Summarizer:
-    def __init__(self, messages:list[dict], model:str="gpt-3.5-turbo-1106", api_key = lambda x : openai_api_key):
+    def __init__(self, messages:list[dict], model:str="gpt-4-1106-preview", api_key = lambda x : openai_api_key):
         """
         Initialize the Summarizer instance. This is the class object used to store message objects, format them & obtain the summary from openai. Masking is also performed to conceal user sender identities. 
 
@@ -72,6 +72,7 @@ class Summarizer:
             # Store        
             formatted_messages.append(msg)
 
+
         self.formatted_messages = formatted_messages
 
     # Make and store name mappings
@@ -116,53 +117,18 @@ class Summarizer:
             , ('ai', <ai message>)
             , . . . 
         ]
-
-        In this case the <human message> is the chat history log in the form of <USERNAME>:<MESSAGE>. 
-        <ai message> is the response from the chatbot application. This is identified using the "is_self" field in the message.
-
-        Iterate through the list of formatted messages. Construct the chat log string in the usual <USERNAME>:<MESSAGE> format (one message is one line entry) until we encounter a message that was sent by the application itself. We assume this means there was a previous call to the chatbot that it responded to. That message is then added to the chat_message_list in the aforementioned format. 
-
-        Then we start cosntructing a new 
-
+        
+        It is possible to have multiple ('human', ...) messages in the list
+        
         """
         chat_message_list = []
-        # Accumulate all chat messages not from the application
-        tmp = []
-        # Save the last message since that one will be the main prompt for this call 
-        for message in self.formatted_messages[:-1]:
-            # Reached a message from the application
+        for message in self.formatted_messages:
             if message['is_self']:
-                # There are messsages not yet added to the chat_message_list
-                if tmp:
-                    # Turn them into a single conversation log string
-                    chat_create = await self._make_summarizer_string_simple(formatted_msgs=tmp)
-                    chat_message_list.append(("human", chat_create))
-                
-                # Append the AI reponse to the chat_message list
-                chat_message_list.append(("ai", message['message']))
-                # Reset TMP
-                tmp = []
-
+                chat_message_list.append(('ai', message['message']))
             else:
-                tmp.append(message)
-        
-        # Take care of anything left over in tmp 
-        if tmp:
-            chat_create = await self._make_summarizer_string_simple(formatted_msgs=tmp)
-        else:
-            chat_create = ""
-        # This formats the most recent message in the chain
-        prompt = self.formatted_messages[-1]['message']
-        prompt = re.search("(?<=@kmsum23 ).*", prompt).group(0)
-
-        main_prompt = ""
-        if chat_create:
-            main_prompt = 'These are the new chat messages since the last response:\n\n'\
-                          f"{chat_create}"\
-                          "\n\nUse this new context only if relevant to answer this question: "
-            
-        main_prompt += prompt
-        chat_message_list.append(('human', main_prompt))
+                # Remove the tag in the prompt message
+                prompt = re.search("(?<=@kmsum23 ).*", message['message']).group(0)
+                chat_message_list.append(('human', prompt))
 
         return chat_message_list
 
@@ -195,25 +161,26 @@ class Summarizer:
         return chat_string
     
     async def get_response(self, message_list):
+        # print(message_list, "\n<END OF MESSAGE LIST>")
         chat_template = ChatPromptTemplate.from_messages(
             message_list
         )
 
         prompt = chat_template.format_messages()
-
         llm = ChatOpenAI(
             model_name = self.model
             , openai_api_key = (self.api_key)(0)
         )
     
-        # Obtain the response
-        response = llm(prompt)
-
-        # Return the response
         try:
+            # Obtain the response
+            response = llm(prompt)
+            # Return the response
+            print('Response Received\n')
             return response.content
         
         except Exception as e:
+            print(e)
             return e
         
 
@@ -254,18 +221,20 @@ class Summarizer:
 
         # format the messages
         await self._format_simple()
+        
 
         # Set the masked names
         await self._make_name_mask()
 
         # Make the chat string
         chat_string = await self._make_summarizer_string_simple()
+        # print(f"chat String: {chat_string}\n<END OF CHAT_STRING>\n")
 
         # Do name masking for outgoing text
         masked_chat_string = await self._perform_mask(chat_string, outgoing=True)
-
+        # print(f"masked_chat_string: {masked_chat_string}\n <END OF MASKED CHAT STRING>\n")
         # Obtain the response
-        print("Obtaining Summary . . . ", end="")
+        print("Obtaining Summary . . . ")
         message_list = [
                 ("system", f"{system_message}"),
                 ("human", f"{user_example}"),
@@ -300,9 +269,6 @@ class Summarizer:
         # Construct the chat string
         chat_message_list = await self._make_chat_message_list()
 
-        print("Chat Message List to be sent is:\n")
-        pprint(chat_message_list)
-        print("\n")
         # Do name masking for outgoing text
         masked_message_list = []
         for msg in chat_message_list:
@@ -312,6 +278,7 @@ class Summarizer:
 
         # Add the system message
         masked_message_list = [('system', system_message)] + masked_message_list
+        print(masked_message_list)
         
         # Get the API response
         response = await self.get_response(masked_message_list)

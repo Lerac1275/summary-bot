@@ -10,19 +10,6 @@ def get_joke_mappings():
             , 'LMAO gottem'
             , 'GOTTEEEM'
         ]
-        , "boollet" : [
-            '🗣🗣🗣 I NEED MORE BOOOOOLLETS 🗣🗣🗣'
-            , "Let's go to the gym buddy 💪💪"
-        ]
-
-        , "bullet" : [
-            '🗣🗣🗣 I NEED MORE BOOOOOLLETS 🗣🗣🗣'
-            , "Let's go to the gym buddy 💪💪"
-        ]
-
-        , "shag" : ['It do be like that some times 😕', "", ""]
-
-        , 'it is what it is' : ['✊😔', '✊😔', '']
     }
     return joke_mapping
 
@@ -190,13 +177,17 @@ async def obtain_messages_chat(client:TelegramClient, chat_msg:Message)-> list[M
     """
     Get all the messages in the message thread that chat_msg is a part of (if any)
     """
-    messages = [chat_msg]
+    messages = []
     last_msg = chat_msg
-    # Go up the thread, retrieving all messages
-    while last_msg and last_msg.is_reply:
-        messages.append(last_msg)
-        last_msg = await last_msg.get_reply_message()
 
+    if last_msg.is_reply:
+        while last_msg and last_msg.is_reply:
+            messages.append(last_msg)
+            last_msg = await last_msg.get_reply_message()
+    else:
+        messages.append(last_msg)
+
+        
     return messages
 
 
