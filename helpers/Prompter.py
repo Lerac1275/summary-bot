@@ -7,9 +7,11 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.chat_models import ChatOpenAI
 from pprint import pprint
 
-
 class Summarizer:
-    def __init__(self, messages:list[dict], model:str="gpt-4-1106-preview", api_key = lambda x : openai_api_key):
+    def __init__(self, messages:list[dict]
+                #  , model:str="gpt-3.5-turbo"
+                 , model:str="gpt-4-1106-preview"
+                 , api_key = lambda x : openai_api_key):
         """
         Initialize the Summarizer instance. This is the class object used to store message objects, format them & obtain the summary from openai. Masking is also performed to conceal user sender identities. 
 
@@ -127,7 +129,7 @@ class Summarizer:
                 chat_message_list.append(('ai', message['message']))
             else:
                 # Remove the tag in the prompt message
-                prompt = re.search("(?<=@kmsum23 ).*", message['message']).group(0)
+                prompt=re.sub("^@kmsum23", "", message['message'])
                 chat_message_list.append(('human', prompt))
 
         return chat_message_list
@@ -256,7 +258,6 @@ class Summarizer:
         """
 
         system_message = f"You are a chatbot embedded in a group chat. Your purpose is to answer questions the group members may have."\
-                        f"\nOnly if relvant, refer to the chat logs provided to you to answer questions that refer to the context of the group chat. Otherwise use your own knowledge."\
                         f"\nIf you feel you don't have enough context of the group chat to answer, just try your best. Otherwise just reply with a 🤷‍♂️"\
                         f"\nSplit your response into paragraphs of not more than 3 sentences each."\
 
@@ -278,7 +279,7 @@ class Summarizer:
 
         # Add the system message
         masked_message_list = [('system', system_message)] + masked_message_list
-        print(masked_message_list)
+        pprint(masked_message_list[1:]) # Ignore system message
         
         # Get the API response
         response = await self.get_response(masked_message_list)

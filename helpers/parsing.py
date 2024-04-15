@@ -184,8 +184,9 @@ async def obtain_messages_chat(client:TelegramClient, chat_msg:Message)-> list[M
         while last_msg and last_msg.is_reply:
             messages.append(last_msg)
             last_msg = await last_msg.get_reply_message()
-    else:
-        messages.append(last_msg)
+    
+    # Adds the standalone message in the event it was not a reply, otherwise will ensure the very first message in the thread is added
+    messages.append(last_msg)
 
         
     return messages
