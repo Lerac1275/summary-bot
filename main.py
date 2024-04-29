@@ -12,13 +12,14 @@ import pandas as pd
 load_dotenv()
 
 # Load Bot Token, api_id and api_hash
-bot_token, api_id, api_hash=os.environ.get("KevinMaloneBot_Token"), os.environ.get('api_id'), os.environ.get('api_hash')
+api_id =os.environ.get('api_id')
+api_hash=os.environ.get('api_hash')
 
 # Get the list of permissible chat_ids that can call this application
 permissible_ids = pd.read_csv("./data/chat_whitelist.csv")
 permissible_ids = permissible_ids.chat_id.values.tolist()
 
-# CLIENT WILL USE YOUR OWN TELEGRAM ACCOUNT
+# Setup Client Connection. 'kmalone' is what I've named the stored session information. Call it whatever you like. 
 client = TelegramClient('kmalone', api_id=api_id, api_hash=api_hash)
 
 # For testing the connection
@@ -33,7 +34,7 @@ async def testing_handler(event):
 
 # For testing the connection
 @client.on(events.NewMessage(incoming=True
-                             , pattern=r'@kmsum23 chat_id'
+                             , pattern=r'^@kmsum23 chat_id'
                              ))
 async def testing_handler(event):
     await event.reply(f"Chat id is {event.chat_id}")
@@ -94,7 +95,6 @@ async def summarization_handler(event):
     if summary:   
         # Reply with the summary
         await event.reply(f"Summarized {len(messages)} Messages at {event.message.date}\n\n{summary}")
-        # Not sure if this is really needed or if garbage collection will handle this
         del summarizer
         del messages
 
@@ -105,7 +105,7 @@ async def summarization_handler(event):
                              ))
 async def chat_handler(event):
     message_text = event.message.message
-    # Trashy fix. Need to properly overhaul how messages are handled. Issue now is that multiple message handlers can be triggered by one message. This is just a temporary fix so that this one isn't called mistakenly
+    # Trashy fix. Need to properly overhaul how messages are handled. Issue now is that multiple message handlers can be triggered by one message. This is just a temporary fix so that the chat_handler() isn't called unintentionally.
     if re.search(r"^@kmsum23 summarize last.*", message_text) or re.search(r"^@kmsum23 chat_id", message_text):
         return
     try:
@@ -123,7 +123,4 @@ async def chat_handler(event):
 # To run the application
 with client:
     print("Application is live")
-    # client.loop.run_until_complete(main())
-    # print(f"Service is live\n\n")
     client.run_until_disconnected()
-    # client.loop.run_until_complete(extract_messages(funemployment_id, None))

@@ -134,11 +134,6 @@ class Summarizer:
 
         return chat_message_list
 
-
-
-
-
-
     async def _perform_mask(self, chat_string:str, outgoing=True):
         """
         Does the masking for a given string. Assumes that self.name_mappings has been populated already
@@ -204,21 +199,21 @@ class Summarizer:
 
         user_example = """
         <U>name1</U>: Wow the weather is really warm today
-        <U>name1</U>: What are ya'll doing today pals. I'm going to cycling hohoho.
-        <U>name2</U>: Ya sia today damn hot. Sweating like a dog bruh
-        <U>name2</U>: Going out with my parents for lunch then watching a movie with YZ
+        <U>name1</U>: What are ya'll doing today pals. I'm going cycling!
+        <U>name2</U>: It's too hot. Sweating like a dog. 
+        <U>name2</U>: Going out with my parents for lunch then watching a movie with AC.
         <U>name2</U>: WBU
         <U>name3</U>: Ya it's too hot already. I need the aircon. 
         <U>name3</U>: Man is going to study today. I got my final exam next week
         <U>name3</U>: Can't wait to go out hahaha
         <U>name3</U>: Lunch after finals pals?
         <U>name2</U>: Okay where u want eat
-        <U>name1</U>: ATB for your exams @n3. You go this!
+        <U>name1</U>: ATB for your exams @name3. You go this!
         <U>name1</U>: Ok sure we discuss after ur exams
         """
 
         ai_example = "Everyone agrees the weather is extremely warm."\
-                    "\n\nname1 is going to spend the day cycling, name2 is lunching with his parents then watching a movie with YZ, and name3 is studying for his final exams next week."\
+                    "\n\nname1 is going to spend the day cycling, name2 is lunching with his parents then watching a movie with AC, and name3 is studying for his final exams next week."\
                     "\n\nname3 is looking forward to their exams ending, and everyone agrees to arrange a meal togehter once it ends."
 
         # format the messages
@@ -230,11 +225,10 @@ class Summarizer:
 
         # Make the chat string
         chat_string = await self._make_summarizer_string_simple()
-        # print(f"chat String: {chat_string}\n<END OF CHAT_STRING>\n")
 
         # Do name masking for outgoing text
         masked_chat_string = await self._perform_mask(chat_string, outgoing=True)
-        # print(f"masked_chat_string: {masked_chat_string}\n <END OF MASKED CHAT STRING>\n")
+        
         # Obtain the response
         print("Obtaining Summary . . . ")
         message_list = [
